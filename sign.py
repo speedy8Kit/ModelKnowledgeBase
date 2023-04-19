@@ -24,14 +24,20 @@ class Sign():
     
     @property
     def data_frame(self) -> pd.DataFrame:
-        values = [' '.join(map(str, self.possible_value))]
-        return pd.DataFrame({'признак': self.name,
-                             'ВЗ': values,
+        if type(self) == SignDiscrete:
+            values = [' '.join(map(str, self.possible_value))]
+        elif type(self) == SignContinuous:
+            values = f'[{np.around(self.val_min, self.decimal)}, {np.around(self.val_max, self.decimal)}]'
+        t = ['Дискретный'] if type(self) == SignDiscrete \
+                                     else ['Непрерывный']
+        return pd.DataFrame({'признак'  : self.name,
+                             'тип'      : t,
+                             'ВЗ'       : values,
                              })
 
     def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None):
         pass
-    
+
 
 class SignDiscrete(Sign):
     '''measurable characteristic for a person
@@ -44,9 +50,11 @@ class SignDiscrete(Sign):
     normal_value: possible_value[i]
         the most common trait value for a normal person
     '''
-    def __init__(self, name, possible_value: list, normal_value) -> None:
-        super().__init__(name, normal_value, possible_value)
+    def __init__(self, name, possible_value: list, normal_value=None) -> None:
         self._rng = np.random.default_rng()
+        if normal_value is None:
+            normal_value = self._rng.choice(possible_value, 1)
+        super().__init__(name, normal_value, possible_value)
     
     def __str__(self) -> str:
         s = f'признак: "{self.name}" \n\t Возможные значения (ВЗ):\
@@ -58,10 +66,10 @@ class SignDiscrete(Sign):
     
     def createExamples(self, exeption: list = None, exemple_count_boundaries: tuple[int, int] = None):
         rng = self._rng
-        exeptions_count = len(exeption) if exeption else 0
+        exeptions_count = len(exeption) if exeption is not None else 0
         posible_count_max = len(self.possible_value) - exeptions_count
         
-        if not exemple_count_boundaries:
+        if exemple_count_boundaries is None:
             count_min = np.ceil(len(self.possible_value) * 0.1)
             count_max = len(self.possible_value) - count_min 
             count_max = posible_count_max if posible_count_max < count_max else count_max
@@ -81,8 +89,8 @@ class SignDiscrete(Sign):
         possible = [val for val in self.possible_value if val not in exeption]
 
         return random.sample(possible, exemple_count)
-    
-        
+ 
+  
 class SignContinuous(Sign):
     '''measurable characteristic for a person
     
@@ -94,12 +102,14 @@ class SignContinuous(Sign):
     normal_value
         the most common trait value for a normal person
     '''
-    def __init__(self, name: str, val_min: float, val_max: float, normal_value) -> None:
+    def __init__(self, name: str, val_min: float, val_max: float, normal_value = None) -> None:
         
         # self.val_min = val_min
         # self.val_max = val_max
         d = val_max - val_min
         self.decimal = -int(f'{d:e}'.split('e')[1])+3
+        if normal_value is None:
+            normal_value = np.mean([val_min, val_max])
         super().__init__(name, normal_value, [val_min, val_max])
         
         self._rng = np.random.default_rng()
@@ -159,3 +169,4 @@ class SignContinuous(Sign):
 
         return [posible, posible + exemple_count]
 
+# del pd, np, random
