@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import random
 
+class SignExample():
+    pass
 class Sign():
     '''measurable characteristic for a person
     
@@ -25,8 +27,11 @@ class Sign():
     @property
     def data_frame(self) -> pd.DataFrame:
         if type(self) == SignDiscrete:
+            print('!!!!!!!!!!!!!!!!!!')
             values = [' '.join(map(str, self.possible_value))]
         elif type(self) == SignContinuous:
+            print('aaaaaaaaaaaaaaaaaaa')
+            
             values = f'[{np.around(self.val_min, self.decimal)}, {np.around(self.val_max, self.decimal)}]'
         t = ['Дискретный'] if type(self) == SignDiscrete \
                                      else ['Непрерывный']
@@ -35,9 +40,12 @@ class Sign():
                              'ВЗ'       : values,
                              })
 
-    def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None):
+    def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None) -> SignExample:
         pass
 
+class SignExample():
+    def __init__(self, sign: Sign, ) -> None:
+        self.sign = sign
 
 class SignDiscrete(Sign):
     '''measurable characteristic for a person
@@ -61,8 +69,9 @@ class SignDiscrete(Sign):
             {self.possible_value} \n\t Нормалное значение (НЗ): {self.normal_value}'
         return s
     
-    def __dataframe__(self) -> pd.DataFrame:
-        return super().__dataframe__()
+    @property
+    def data_frame(self) -> pd.DataFrame:
+        return super().data_frame()
     
     def createExamples(self, exeption: list = None, exemple_count_boundaries: tuple[int, int] = None):
         rng = self._rng
@@ -103,9 +112,6 @@ class SignContinuous(Sign):
         the most common trait value for a normal person
     '''
     def __init__(self, name: str, val_min: float, val_max: float, normal_value = None) -> None:
-        
-        # self.val_min = val_min
-        # self.val_max = val_max
         d = val_max - val_min
         self.decimal = -int(f'{d:e}'.split('e')[1])+3
         if normal_value is None:
@@ -141,14 +147,11 @@ class SignContinuous(Sign):
         else:
             gaps  = [[self.val_min, exeption[0]], [exeption[1], self.val_max]]
             delta = [exeption[0] - self.val_min, self.val_max - exeption[1]]
-            # print(delta)
             ind = self._rng.choice([0, 1], p = delta/np.sum(delta))
             gap   = gaps[ind] \
                     if      np.min(delta) > exemple_count_boundaries[0] \
                     else    gaps[np.argmax(delta)]
 
-        # print(f'{gap=}')
-        # print(f'{exemple_count_boundaries=}')
         if exemple_count_boundaries[0] > (gap[1] - gap[0]):
             str_err = f'вообщето призак "{self.name}" с границами [{self.val_min}, {self.val_max}] не имеет неприрывного' + \
                         f'промежутка длиной "{exemple_count_boundaries[0]}", так чтобы он не пересекался с {exeption}'
@@ -162,11 +165,32 @@ class SignContinuous(Sign):
         
         
         posible = gap[0] + (random.random() * posible_max_count)
-        # if posible - self.val_min < exemple_count_boundaries[0] or \
-        #    self.val_max  - (posible + exemple_count) < exemple_count_boundaries[0]:
-        #     return self.createExample(exeption, exemple_count_boundaries)
-        # print(f'{[posible, posible + exemple_count]}')
-
         return [posible, posible + exemple_count]
+    
+    
+if __name__ == '__main__':
+    def checkSignDiscrete(is_print):
+        sign_enumerable = SignDiscrete(name = 'цвет лица',
+                             possible_value = ['1', '2', '3', '4', '5',
+                                            '11', '22', '33', '44', '55', '66'],
+                               normal_value = 'нормальный')
+        if is_print: 
+            print(sign_enumerable)
+        is_correct = sign_enumerable.name = 'цвет лица'
+        return is_correct
+    
+    def checkSignContinuous(is_print):
+        sign_interval = SignContinuous(name = 'температура', 
+                                    val_min = 27,
+                                    val_max = 42,
+                               normal_value = [35.5, 37.2])
+        if is_print: 
+            print(sign_interval)
+        
+        return True
+    
+    if not checkSignDiscrete(True):
+        print('error checkSignDiscrete')
+    if not checkSignContinuous(False):
+        print('error checkSignContinuous')
 
-# del pd, np, random
