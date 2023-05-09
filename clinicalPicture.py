@@ -108,16 +108,27 @@ class ClinicalPicture():
         self.disease = [dis.Disease(f'болезнь {i}', signs=sings) for i, sings in enumerate(sign_of_disease)]
 
     def createExample(self):
-        pass
+        if self.disease is None:
+            self.generateDisease
+        exemple_disease_arr = [dis.createExample() for dis in self.disease]
+        
+        return exemple_disease_arr            
 
 
 if __name__ == '__main__':
-    g = ClinicalPicture(signs_count=5, disease_count=10)
+    def checClinicalPicture(is_print: bool):
+            
+        g = ClinicalPicture(signs_count=6, disease_count=3)
 
-    g.generateSings()
-    g.generateDisease()
-    print(*g.data_frame, sep='\n\n')
+        g.generateSings()
+        g.generateDisease()
+        
+        if is_print:
+            print('Заболевание:')
+            print(*g.createExample(), sep='\n\nЗаболевание:\n')
+            a, b, c = g.data_frame
+            
+            print(c['болезнь 0'])
+
+    checClinicalPicture(True)
     
-    
-    # g.data_frame[2].to_csv('table', index=True)
-    # print(g._signs_continous[0].data_frame)

@@ -92,7 +92,7 @@ class SignOfDisease():
             self.sign_for_pd.append(self.sign.createExamples(sign_for_pd_prev, exemple_count_boundaries))
             sign_for_pd_prev = self.sign_for_pd[i]
             # print(sign_for_pd_prev)
-            
+    
     
     def __str__(self) -> str:
             
@@ -156,11 +156,12 @@ class SignOfDisease():
         temp_2 = pd.DataFrame({'ЗДП': list(sfpd)})
         return self.sign.data_frame.join(temp_1), self.periods_dynamic.data_frame.join(temp_2)
     
-    def createExample(self) -> list(tuple[int]):
+    def createExample(self) -> list[tuple[int]]:
         
         moments_verification = self.periods_dynamic.createMeasurementTimes()
         l = (sum([len(m) for m in moments_verification]))
-        exemples = [0 for _ in range(l)]
+        exemples_arr = [None for _ in range(l)]
+        moments_arr  = [None for _ in range(l)]
         i = 0
         for mv, s_pd in zip(moments_verification, self.sign_for_pd):
             if type(self.sign) == sig.SignContinuous:
@@ -168,10 +169,11 @@ class SignOfDisease():
             elif type(self.sign) == sig.SignDiscrete:
                 a = self._rng.choice(s_pd, len(mv))
             for j, val in enumerate(zip(mv, a)):
-                exemples[i+j] = val
+                moments_arr[i+j] = val[0]
+                exemples_arr[i+j] = val[1]
             i += j + 1
 
-        return exemples
+        return (moments_arr, exemples_arr)
 
 class Disease():
     def __init__(self, name, signs: tuple[SignOfDisease]) -> None:
@@ -207,83 +209,125 @@ class Disease():
         return data_disease, data_pd
     
     def createExample(self):
-        pass
+        
+        example_disease = [sign.createExample() for sign in self.signs]
+
+        return example_disease
 
 # #######################################################################################
 
-def checkPeriodsDynamic():
-    p_d = PeriodsDynamic()
-    p_d = PeriodsDynamic([(1, 10), (1,10)])
-    for _ in range(10):
-        s = ''
-        for ar in p_d.createMeasurementTimes():
-            temp = f'{ar}'
-            s += f'{temp:>15}'
-        # print(s)
-    max = 0
-    min = 22
-    
-    test_1 = True
-    test_2 = True
-    for _ in range(10000):
-        val = p_d.createMeasurementTimes()
-        max = max if max > val[0][-1] else val[0][-1]
-        min = min if min < val[1][0] else val[1][0]
-        
-        test_1 = test_1 and np.array_equal(val[0], np.sort(val[0]))
-        test_1 = test_1 and np.array_equal(val[1], np.sort(val[1]))
-        test_2 = test_2 and (val[0][-1] < val[1][0])
-        
 
-    test_3 = min-1==1 and max==10
-
-    
-    # for _ in range(1000):
-    #     for ar in p_d.createMeasurementTimes():
-            
-    return (test_1 and test_2 and test_3)
-
-def checkSignOfDisease():
-    sign_interval_1     = sig.SignContinuous(name = 'температура', 
-                                          val_min = 27,
-                                          val_max = 42,
-                                     normal_value = [35.5, 37.2])
-    sign_enumerable_1   = sig.SignDiscrete(name = 'цвет лица',
-                                 possible_value = ['1', '2', '3', '4', '5',
-                                                '11', '22', '33', '44', '55', '66'])
-    pdi = [PeriodsDynamic() for _ in range(2)]
-    
-    sod = [SignOfDisease(sign, pdi_i) for pdi_i, sign in zip(pdi, [sign_interval_1, sign_enumerable_1])]
-    for i in range(2):
-        # print(*sod[i].data_frame, sep='\n\n')
-        print(*sod[i].createExample(), sep='\n')
-        print(*sod[i].data_frame, sep='\n')
-    return True
 
 if __name__ == '__main__':
-    sign_interval_1     = sig.SignContinuous(name = 'температура', 
-                                          val_min = 27,
-                                          val_max = 42,
-                                     normal_value = [35.5, 37.2])
-    sign_enumerable_1   = sig.SignDiscrete(name = 'цвет лица',
-                                 possible_value = ['1', '2', '3', '4', '5',
-                                                '11', '22', '33', '44', '55', '66'],
-                                   normal_value = 'нормальный')
-    pdi = [PeriodsDynamic() for _ in range(2)]
+    def checkPeriodsDynamic(is_print: bool):
+        p_d = PeriodsDynamic()
+        p_d = PeriodsDynamic([(1, 10), (1,10)])
+        max = 0
+        min = 22
+        
+        test_1 = True
+        test_2 = True
+        for _ in range(10000):
+            val = p_d.createMeasurementTimes()
+            max = max if max > val[0][-1] else val[0][-1]
+            min = min if min < val[1][0] else val[1][0]
+            
+            test_1 = test_1 and np.array_equal(val[0], np.sort(val[0]))
+            test_1 = test_1 and np.array_equal(val[1], np.sort(val[1]))
+            test_2 = test_2 and (val[0][-1] < val[1][0])
+            
 
-    sod_1 = SignOfDisease(sign_interval_1, pdi[0])
-    sod_2 = SignOfDisease(sign_enumerable_1, pdi[1])
-    
-    
-    print(checkPeriodsDynamic())
-    print(checkSignOfDisease())
-    
-    dis = Disease('боль', [sod_1, sod_2])
-    # dis.data_frame
+        test_3 = min-1==1 and max==10
+        test = (test_1 and test_2 and test_3)
+        if not is_print:
+            return test
+        
+        for _ in range(10):
+            s = ''
+            for ar in p_d.createMeasurementTimes():
+                temp = f'{ar}'
+                s += f'{temp:>15}'
+                print(s)
+
+        return test
     
 
+    def checkSignOfDisease(is_print: bool):
+        sign_interval_1     = sig.SignContinuous(name = 'температура', 
+                                            val_min = 27,
+                                            val_max = 42,
+                                        normal_value = [35.5, 37.2])
+        sign_enumerable_1   = sig.SignDiscrete(name = 'цвет лица',
+                                    possible_value = ['1', '2', '3', '4', '5',
+                                                    '11', '22', '33', '44', '55', '66'])
+        pdi = [PeriodsDynamic() for _ in range(2)]
+        
+        sod = [SignOfDisease(sign, pdi_i) for pdi_i, sign in zip(pdi, [sign_interval_1, sign_enumerable_1])]
+        test = True
+
+        def test_in(val, index_pd):
+
+            if type(sod[i].sign) == sig.SignContinuous:
+                boundaries = sod[i].sign_for_pd[index_pd]
+                is_in = boundaries[0] <= val <= boundaries[1]
+            else: 
+                is_in =  val in sod[i].sign_for_pd[index_pd]
+            return is_in
+        
+        for i in range(2):
+            for _ in range(100):
+                ex = sod[i].createExample()
+                index_pd = 0
+                for measurement in ex[1]:
+                    if test_in(measurement, index_pd):
+                        continue
+
+                    index_pd += 1
+                    if index_pd > len(sod[i].sign_for_pd):
+                        test = False
+                    else:
+                        test = test and test_in(measurement, index_pd)
+        
+        
+        if is_print:
+            for i in range(2):
+                for _ in range(1):
+                    # print(*sod[i].data_frame, sep='\n\n')
+                    print(*sod[i].createExample(), sep='\n')
+                    print()
+                print(*sod[i].data_frame, sep='\n\n')
+                print('='*30)
+                
+        return test
     
-    print(dis.createExample(), sep='\n')
-    # print(*dis.data_frame, sep='\n')
+    def checkDisease(is_print: bool):
+        sign_interval_1     = sig.SignContinuous(name = 'температура', 
+                                              val_min = 27,
+                                              val_max = 42,
+                                         normal_value = [35.5, 37.2])
+        sign_enumerable_1   = sig.SignDiscrete(name = 'цвет лица',
+                                     possible_value = ['1', '2', '3', '4', '5',
+                                                       '11', '22', '33', '44', '55', '66'],
+                                       normal_value = 'нормальный')
+        pdi = [PeriodsDynamic() for _ in range(2)]
+
+        sod_1 = SignOfDisease(sign_interval_1, pdi[0])
+        sod_2 = SignOfDisease(sign_enumerable_1, pdi[1])
+        
+        dis = Disease('боль', [sod_1, sod_2])
+        
+        if is_print:
+            print(dis.createExample())
+            print(*dis.data_frame, sep='\n')
+        return True
+        
+        
+    if not checkPeriodsDynamic(False):
+        print('error checkPeriodsDynamic')
+    if not checkSignOfDisease(True):
+        print('error checkSignOfDisease')
+    if not checkDisease(False):
+        print('error checkDisease')
+
 
 # del pd, np, random, sign
