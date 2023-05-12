@@ -34,7 +34,7 @@ class ClinicalPicture():
         return self._sings_discrete + self._signs_continous
 
     @property
-    def data_frame(self):
+    def data_frame(self) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]: 
         data_signs : pd.DataFrame = self.disease[0].data_frame[0]
         data_signs  = data_signs.loc[:, data_signs.columns != 'ЧПД']
         
@@ -47,7 +47,7 @@ class ClinicalPicture():
             data_disease = pd.concat([data_disease, data_disease_temp])
             
             data_pd_temp = d.data_frame[1]
-            data_pd_temp.insert(0, 'заболевание', [d.name for i in range(len(data_pd_temp.index))])
+            data_pd_temp.insert(0, 'заболевание', [d.name for _ in range(len(data_pd_temp.index))])
             data_pd = pd.concat([data_pd, data_pd_temp])
         
         data_pd      = data_pd.set_index(['заболевание', data_pd.index])
@@ -127,8 +127,7 @@ if __name__ == '__main__':
             print('Заболевание:')
             print(*g.createExample(), sep='\n\nЗаболевание:\n')
             a, b, c = g.data_frame
-            
-            print(c['болезнь 0'])
+            print(c)
 
     checClinicalPicture(True)
     

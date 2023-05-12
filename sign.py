@@ -2,8 +2,7 @@ import pandas as pd
 import numpy as np
 import random
 
-class SignExample():
-    pass
+
 class Sign():
     '''measurable characteristic for a person
     
@@ -27,12 +26,10 @@ class Sign():
     @property
     def data_frame(self) -> pd.DataFrame:
         if type(self) == SignDiscrete:
-            print('!!!!!!!!!!!!!!!!!!')
             values = [' '.join(map(str, self.possible_value))]
         elif type(self) == SignContinuous:
-            print('aaaaaaaaaaaaaaaaaaa')
-            
             values = f'[{np.around(self.val_min, self.decimal)}, {np.around(self.val_max, self.decimal)}]'
+            
         t = ['Дискретный'] if type(self) == SignDiscrete \
                                      else ['Непрерывный']
         return pd.DataFrame({'признак'  : self.name,
@@ -40,12 +37,9 @@ class Sign():
                              'ВЗ'       : values,
                              })
 
-    def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None) -> SignExample:
+    def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None):
         pass
 
-class SignExample():
-    def __init__(self, sign: Sign, ) -> None:
-        self.sign = sign
 
 class SignDiscrete(Sign):
     '''measurable characteristic for a person
@@ -69,26 +63,23 @@ class SignDiscrete(Sign):
             {self.possible_value} \n\t Нормалное значение (НЗ): {self.normal_value}'
         return s
     
-    @property
-    def data_frame(self) -> pd.DataFrame:
-        return super().data_frame()
-    
     def createExamples(self, exeption: list = None, exemple_count_boundaries: tuple[int, int] = None):
         rng = self._rng
-        exeptions_count = len(exeption) if exeption is not None else 0
+        exeptions_count = len(exeption) if exeption else 0
         posible_count_max = len(self.possible_value) - exeptions_count
+        if posible_count_max < 1:
+            raise TypeError(f'невозможно сгенерировать 0 экземпляров')
         
         if exemple_count_boundaries is None:
             count_min = np.ceil(len(self.possible_value) * 0.1)
-            count_max = len(self.possible_value) - count_min 
+            count_max = np.ceil(len(self.possible_value) * 0.8)
             count_max = posible_count_max if posible_count_max < count_max else count_max
             exemple_count_boundaries = [count_min, count_max]
-            
         elif not (0 < exemple_count_boundaries[0] <= posible_count_max):
             raise TypeError(f'вообщето y признака "{self.name}" нет "{exemple_count_boundaries}" значений ...')
         
         exemple_count = random.randint(exemple_count_boundaries[0], exemple_count_boundaries[1])
-        if not exeption:
+        if exeption is None:
             return random.sample(self.possible_value, exemple_count)
         for val in exeption:
             if val not in self.possible_value:
@@ -113,7 +104,8 @@ class SignContinuous(Sign):
     '''
     def __init__(self, name: str, val_min: float, val_max: float, normal_value = None) -> None:
         d = val_max - val_min
-        self.decimal = -int(f'{d:e}'.split('e')[1])+3
+        self.decimal = -int(f'{d:e}'.split('e')[1]) + 3
+        
         if normal_value is None:
             normal_value = np.mean([val_min, val_max])
         super().__init__(name, normal_value, [val_min, val_max])
@@ -127,7 +119,7 @@ class SignContinuous(Sign):
     @property
     def val_max(self):
         return self.possible_value[1]
-    
+
     def __str__(self) -> str:
         s = f'признак "{self.name}" \n\t Возможные значения (ВЗ): [{self.val_min}, {self.val_max}] \n\t Нормалное значение (НЗ): {self.normal_value}'
         return s
@@ -137,14 +129,15 @@ class SignContinuous(Sign):
             min_val = 0.1 * (self.val_max - self.val_min)
             max_val = self.val_max - self.val_min - min_val * 2
             exemple_count_boundaries = [min_val, max_val]
-        # print(exeption, exemple_count_boundaries, [self.val_min, self.val_max])
+
         if exeption is None:
             gap = [self.val_min, self.val_max]
-        elif not (self.val_min <= exeption[0] <= exeption[1] <= self.val_max):
-            str_err = f'вообщето призак "{self.name}" не включает промежуток {exeption}, так как его границы' + \
-                              f'[{self.val_min}, {self.val_max}]'
-            raise TypeError(str_err)
         else:
+            if not (self.val_min <= exeption[0] <= exeption[1] <= self.val_max):
+                str_err = f'вообщето призак "{self.name}" не включает промежуток {exeption}, так как его границы' + \
+                                f'[{self.val_min}, {self.val_max}]'
+                raise TypeError(str_err)
+
             gaps  = [[self.val_min, exeption[0]], [exeption[1], self.val_max]]
             delta = [exeption[0] - self.val_min, self.val_max - exeption[1]]
             ind = self._rng.choice([0, 1], p = delta/np.sum(delta))
@@ -184,13 +177,16 @@ if __name__ == '__main__':
                                     val_min = 27,
                                     val_max = 42,
                                normal_value = [35.5, 37.2])
-        if is_print: 
-            print(sign_interval)
+        if is_print:
+            v = None
+            for _ in range(3):
+                v = sign_interval.createExamples(exeption=v)
+                print(v)
         
         return True
     
-    if not checkSignDiscrete(True):
+    if not checkSignDiscrete(False):
         print('error checkSignDiscrete')
-    if not checkSignContinuous(False):
+    if not checkSignContinuous(True):
         print('error checkSignContinuous')
 

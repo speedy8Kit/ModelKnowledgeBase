@@ -147,6 +147,12 @@ class SignOfDisease():
     def data_frame(self):
         if type(self.sign) == sig.SignContinuous:
             sfpd = np.around(self.sign_for_pd, self.sign.decimal)
+            
+            if type(self.sign) == sig.SignDiscrete:
+                for i in range(sfpd):
+                    sfpd[i] = sfpd[i].sort()
+            
+            
             # sfpd = self.sign_for_pd
             
         else:
@@ -173,10 +179,10 @@ class SignOfDisease():
                 exemples_arr[i+j] = val[1]
             i += j + 1
 
-        return (moments_arr, exemples_arr)
+        return {'time': moments_arr,'value': exemples_arr}
 
 class Disease():
-    def __init__(self, name, signs: tuple[SignOfDisease]) -> None:
+    def __init__(self, name, signs: list[SignOfDisease]) -> None:
         self.name = name
         self.signs = signs
         
@@ -207,10 +213,13 @@ class Disease():
         data_pd = data_pd.set_index(['признак', data_pd.index])
 
         return data_disease, data_pd
-    
+
     def createExample(self):
+        example_disease = {'signs_discrete': [], 'signs_continuous': []}
         
-        example_disease = [sign.createExample() for sign in self.signs]
+        for sign in self.signs:
+            ty = 'signs_discrete' if type(sign.sign) == sig.SignDiscrete else 'signs_continuous'
+            example_disease[ty].append(sign.createExample())
 
         return example_disease
 
@@ -278,7 +287,7 @@ if __name__ == '__main__':
             for _ in range(100):
                 ex = sod[i].createExample()
                 index_pd = 0
-                for measurement in ex[1]:
+                for measurement in ex['value']:
                     if test_in(measurement, index_pd):
                         continue
 
@@ -324,9 +333,9 @@ if __name__ == '__main__':
         
     if not checkPeriodsDynamic(False):
         print('error checkPeriodsDynamic')
-    if not checkSignOfDisease(True):
+    if not checkSignOfDisease(False):
         print('error checkSignOfDisease')
-    if not checkDisease(False):
+    if not checkDisease(True):
         print('error checkDisease')
 
 
