@@ -3,6 +3,7 @@ import numpy as np
 import random
 
 import sign as sig
+from typing import TypedDict, Dict, Required
 
 
 class PeriodsDynamic():
@@ -11,7 +12,7 @@ class PeriodsDynamic():
     Attributes
     ----------
     
-    1 <= periods_dynamics_count <= 5: int
+    2 <= periods_dynamics_count <= 5: int
         the number of intervals where each has a length of
         at least period_time_min and no more than period_time_max
     time_period_boundaries: tuple[int, int]
@@ -19,17 +20,20 @@ class PeriodsDynamic():
         1 <= period <= 24
     '''
     def __init__(self,
-                 period_time_boundaries: list[tuple[int, int]] | None = None) -> None:
+                 period_time_boundaries: list[tuple[int, int]] | None = None,
+                 *,
+                 pd_count_max = 5,
+                 pd_len_max   = 25) -> None:
+        self._rng = np.random.default_rng()
         if period_time_boundaries is None:
-            pd_count_min = 1
-            pd_count_max = 5
-            pd_len_range = range(1, 25)
-            rng = np.random.default_rng()
+            pd_count_min = 2
+            pd_len_range = range(1, pd_len_max)
             
-            pd_count = rng.integers(pd_count_min, pd_count_max+1)
-            period_time_boundaries = [sorted(rng.choice(a = pd_len_range,
-                                                     size = 2,
-                                                  replace = False)) for _ in range(pd_count)]
+            
+            pd_count = self._rng.integers(pd_count_min, pd_count_max+1)
+            period_time_boundaries = [sorted(self._rng.choice(a = pd_len_range,
+                                                           size = 2,
+                                                        replace = False)) for _ in range(pd_count)]
 
         if not (1 <=  len(period_time_boundaries)): 
             raise TypeError("что за фигня c количеством periods_dynamics?!?")
@@ -61,19 +65,19 @@ class PeriodsDynamic():
     def pd_count(self):
         return len(self.period_time_boundaries)
         
-    def createMeasurementTimes(self):
+    def createMeasurementTimes(self, *, count_mesurment_in_pd_max = 3):
         period_count = len(self.period_time_boundaries)
         
         pd_times = np.array([random.randint(period_time[0], period_time[1]) 
                              for period_time in self.period_time_boundaries])
         
         # it may turn out that for the selected duration of the dynamic period it is impossible to perform 3 measurements
-        measurements_in_pd_count_max = np.where(pd_times > 3, 3, pd_times)
+        count_mesurment_in_pd_max_arr = np.where(pd_times > count_mesurment_in_pd_max, count_mesurment_in_pd_max, pd_times)
         # select the number of measurements for the period, taking into account the maximum possible
-        measurements_in_pd_count = [random.randint(1, max) for max in measurements_in_pd_count_max]
+        count_mesurment_in_pd_arr = [random.randint(1, max) for max in count_mesurment_in_pd_max_arr]
         
         # select the time for each measurement on the entire time axis grouped by periods of dynamics
-        measurement_times = [np.sort(random.sample(range(1, pd_times[i]+1), measurements_in_pd_count[i])) 
+        measurement_times = [np.sort(random.sample(range(1, pd_times[i]+1), count_mesurment_in_pd_arr[i])) 
                              for i in range(period_count)]
         time_summary = 0
         for i, el in enumerate(measurement_times):
@@ -81,17 +85,24 @@ class PeriodsDynamic():
             
         return measurement_times
 
+
+class SignOfDiseaseExemple(TypedDict):
+    time:   list
+    value:  list
+
 class SignOfDisease():
-    def __init__(self, sign: sig.Sign, periods_dynamic: PeriodsDynamic, exemple_count_boundaries= None) -> None:
+    def __init__(self, 
+                 sign: sig.Sign,
+                 periods_dynamic: PeriodsDynamic,
+                 boundaries_len_sample_in_percent = [0.1, 0.5]) -> None:
         self._rng = np.random.default_rng()
         self.sign                       = sign
         self.periods_dynamic            = periods_dynamic
-        sign_for_pd_prev = None
+        sign_for_pd_prev = []
         self.sign_for_pd = []
         for i in range(len(self.periods_dynamic.period_time_boundaries)):
-            self.sign_for_pd.append(self.sign.createExamples(sign_for_pd_prev, exemple_count_boundaries))
+            self.sign_for_pd.append(self.sign.createSample(sign_for_pd_prev, boundaries_len_sample_in_percent))
             sign_for_pd_prev = self.sign_for_pd[i]
-            # print(sign_for_pd_prev)
     
     
     def __str__(self) -> str:
@@ -147,31 +158,25 @@ class SignOfDisease():
     def data_frame(self):
         if type(self.sign) == sig.SignContinuous:
             sfpd = np.around(self.sign_for_pd, self.sign.decimal)
-            
-            if type(self.sign) == sig.SignDiscrete:
-                for i in range(sfpd):
-                    sfpd[i] = sfpd[i].sort()
-            
-            
-            # sfpd = self.sign_for_pd
-            
         else:
             sfpd = self.sign_for_pd
+            for i in range(len(sfpd)):
+                sfpd[i] = np.sort(sfpd[i])
 
         temp_1 = pd.DataFrame({'ЧПД': [self.periods_dynamic.pd_count]})
         temp_2 = pd.DataFrame({'ЗДП': list(sfpd)})
         return self.sign.data_frame.join(temp_1), self.periods_dynamic.data_frame.join(temp_2)
     
-    def createExample(self) -> list[tuple[int]]:
+    def createExample(self, *, count_mesurment_in_pd_max = 3) -> SignOfDiseaseExemple:
         
-        moments_verification = self.periods_dynamic.createMeasurementTimes()
-        l = (sum([len(m) for m in moments_verification]))
-        exemples_arr = [None for _ in range(l)]
-        moments_arr  = [None for _ in range(l)]
+        moments_verification = self.periods_dynamic.createMeasurementTimes(count_mesurment_in_pd_max=count_mesurment_in_pd_max)
+        count_verification = (sum([len(m) for m in moments_verification]))
+        exemples_arr = [None for _ in range(count_verification)]
+        moments_arr  = [None for _ in range(count_verification)]
         i = 0
         for mv, s_pd in zip(moments_verification, self.sign_for_pd):
             if type(self.sign) == sig.SignContinuous:
-                a = self._rng.uniform(s_pd[0], s_pd[1], len(mv))
+                a = np.around(self._rng.uniform(s_pd[0], s_pd[1], len(mv)), self.sign.decimal)
             elif type(self.sign) == sig.SignDiscrete:
                 a = self._rng.choice(s_pd, len(mv))
             for j, val in enumerate(zip(mv, a)):
@@ -180,6 +185,10 @@ class SignOfDisease():
             i += j + 1
 
         return {'time': moments_arr,'value': exemples_arr}
+
+class DiseaseExemple(TypedDict):
+    signs_discrete:    Dict[str, SignOfDiseaseExemple]
+    signs_continuous:  Dict[str, SignOfDiseaseExemple]
 
 class Disease():
     def __init__(self, name, signs: list[SignOfDisease]) -> None:
@@ -210,16 +219,17 @@ class Disease():
         data_disease = data_disease.set_index('признак')
         # mult_ind = data_pd.index.values 
         data_pd.index.name = 'номер ПД'
+        data_pd.index += 1
         data_pd = data_pd.set_index(['признак', data_pd.index])
 
         return data_disease, data_pd
 
-    def createExample(self):
-        example_disease = {'signs_discrete': [], 'signs_continuous': []}
+    def createExample(self, *, count_mesurment_in_pd_max = 3) :
+        example_disease = {'signs_discrete':{}, 'signs_continuous':{}}
         
         for sign in self.signs:
             ty = 'signs_discrete' if type(sign.sign) == sig.SignDiscrete else 'signs_continuous'
-            example_disease[ty].append(sign.createExample())
+            example_disease[f'{ty}'][f'{sign.sign.name}'] = sign.createExample(count_mesurment_in_pd_max=count_mesurment_in_pd_max)
 
         return example_disease
 
@@ -250,6 +260,8 @@ if __name__ == '__main__':
         test = (test_1 and test_2 and test_3)
         if not is_print:
             return test
+        
+        print(p_d.data_frame)
         
         for _ in range(10):
             s = ''
@@ -326,17 +338,19 @@ if __name__ == '__main__':
         dis = Disease('боль', [sod_1, sod_2])
         
         if is_print:
+            # СГЕНЕРИРОВАЛ 1 ЭЛЕМЕНТ
             print(dis.createExample())
+
             print(*dis.data_frame, sep='\n')
         return True
         
         
     if not checkPeriodsDynamic(False):
-        print('error checkPeriodsDynamic')
-    if not checkSignOfDisease(False):
-        print('error checkSignOfDisease')
-    if not checkDisease(True):
-        print('error checkDisease')
+        raise SystemError('error checkPeriodsDynamic')
+    if not checkSignOfDisease(True):
+        raise SystemError('error checkSignOfDisease')
+    if not checkDisease(False):
+        raise SystemError('error checkDisease')
 
 
 # del pd, np, random, sign

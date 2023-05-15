@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import random
 
 
 class Sign():
@@ -19,6 +18,7 @@ class Sign():
         requires redefinition is used to create an arbitrary attribute value
     '''
     def __init__(self, name: str, normal_value, possible_value) -> None:
+        self._rng = np.random.default_rng()
         self.name           = name
         self.possible_value = possible_value
         self.normal_value   = normal_value
@@ -37,7 +37,7 @@ class Sign():
                              'ВЗ'       : values,
                              })
 
-    def createExamples(self, exeption:list = None, exemple_count_boundaries: int = None):
+    def createSample(self, exeptions:list = [], boundaries_len_sample_in_percent: tuple[float, float] = [0.1, 0.5]):
         pass
 
 
@@ -53,42 +53,44 @@ class SignDiscrete(Sign):
         the most common trait value for a normal person
     '''
     def __init__(self, name, possible_value: list, normal_value=None) -> None:
-        self._rng = np.random.default_rng()
         if normal_value is None:
-            normal_value = self._rng.choice(possible_value, 1)
+            normal_value = possible_value[0]
         super().__init__(name, normal_value, possible_value)
     
     def __str__(self) -> str:
-        s = f'признак: "{self.name}" \n\t Возможные значения (ВЗ):\
-            {self.possible_value} \n\t Нормалное значение (НЗ): {self.normal_value}'
+        s = f'признак: "{self.name}" \n\t Возможные значения (ВЗ):' +\
+            f'{self.possible_value} \n\t Нормалное значение (НЗ): {self.normal_value}'
         return s
     
-    def createExamples(self, exeption: list = None, exemple_count_boundaries: tuple[int, int] = None):
-        rng = self._rng
-        exeptions_count = len(exeption) if exeption else 0
-        posible_count_max = len(self.possible_value) - exeptions_count
-        if posible_count_max < 1:
-            raise TypeError(f'невозможно сгенерировать 0 экземпляров')
+    def createSample(self,
+                     exeptions: list = [],
+                     boundaries_len_sample_in_percent: tuple[float, float] = [0.1, 0.5]):
         
-        if exemple_count_boundaries is None:
-            count_min = np.ceil(len(self.possible_value) * 0.1)
-            count_max = np.ceil(len(self.possible_value) * 0.8)
-            count_max = posible_count_max if posible_count_max < count_max else count_max
-            exemple_count_boundaries = [count_min, count_max]
-        elif not (0 < exemple_count_boundaries[0] <= posible_count_max):
-            raise TypeError(f'вообщето y признака "{self.name}" нет "{exemple_count_boundaries}" значений ...')
         
-        exemple_count = random.randint(exemple_count_boundaries[0], exemple_count_boundaries[1])
-        if exeption is None:
-            return random.sample(self.possible_value, exemple_count)
-        for val in exeption:
+        for val in exeptions:
             if val not in self.possible_value:
                 raise TypeError(f'вообщето y признака "{self.name}" значения "{val}"  нет...')
+        possible_val_sample = [val for val in self.possible_value if val not in exeptions]
+        
+        count_possible_value = len(self.possible_value)
+        
+        len_samle_max = count_possible_value - len(exeptions)
+        if len_samle_max < 1:
+            raise TypeError(f'невозможно сгенерировать выборку из 0 экземпляров')
 
-            
-        possible = [val for val in self.possible_value if val not in exeption]
+        count_min = np.ceil(boundaries_len_sample_in_percent[0] * count_possible_value)
+        count_max = np.ceil(boundaries_len_sample_in_percent[1] * count_possible_value)
+        if count_max > len_samle_max:
+            count_max = len_samle_max
+        if not (0 < count_min <= count_max <= len_samle_max):
+            str_err = f'вообщето y признака "{self.name}" без {exeptions} нет ' +\
+                      f'от {count_min} до {count_max} ' +\
+                       'значений ...'
+            raise TypeError(str_err)
 
-        return random.sample(possible, exemple_count)
+        sample_len = self._rng.integers(count_min, count_max + 1)
+        
+        return self._rng.choice(possible_val_sample, sample_len, False)
  
   
 class SignContinuous(Sign):
@@ -104,13 +106,12 @@ class SignContinuous(Sign):
     '''
     def __init__(self, name: str, val_min: float, val_max: float, normal_value = None) -> None:
         d = val_max - val_min
-        self.decimal = -int(f'{d:e}'.split('e')[1]) + 3
+        self.decimal = -int(f'{d:e}'.split('e')[1]) + 2
         
         if normal_value is None:
             normal_value = np.mean([val_min, val_max])
         super().__init__(name, normal_value, [val_min, val_max])
-        
-        self._rng = np.random.default_rng()
+
     
     @property
     def val_min(self):
@@ -124,41 +125,38 @@ class SignContinuous(Sign):
         s = f'признак "{self.name}" \n\t Возможные значения (ВЗ): [{self.val_min}, {self.val_max}] \n\t Нормалное значение (НЗ): {self.normal_value}'
         return s
         
-    def createExamples(self, exeption: tuple[float, float] = None, exemple_count_boundaries: tuple[float, float] = None):
-        if exemple_count_boundaries is None:
-            min_val = 0.1 * (self.val_max - self.val_min)
-            max_val = self.val_max - self.val_min - min_val * 2
-            exemple_count_boundaries = [min_val, max_val]
+    def createSample(self, 
+                     exeption: tuple[float, float] = [], 
+                     boundaries_len_sample_in_percent: tuple[float, float] = [0.1, 0.5]):
+        
+        boundaries_len_sample = [i * (self.val_max - self.val_min) for i in boundaries_len_sample_in_percent]
 
-        if exeption is None:
+        if len(exeption) != 2:
             gap = [self.val_min, self.val_max]
         else:
             if not (self.val_min <= exeption[0] <= exeption[1] <= self.val_max):
-                str_err = f'вообщето призак "{self.name}" не включает промежуток {exeption}, так как его границы' + \
-                                f'[{self.val_min}, {self.val_max}]'
+                str_err = f'вообще-то призак "{self.name}" не включает промежуток {exeption},' + \
+                          f'так как его границы [{self.val_min}, {self.val_max}]'
                 raise TypeError(str_err)
 
             gaps  = [[self.val_min, exeption[0]], [exeption[1], self.val_max]]
             delta = [exeption[0] - self.val_min, self.val_max - exeption[1]]
             ind = self._rng.choice([0, 1], p = delta/np.sum(delta))
             gap   = gaps[ind] \
-                    if      np.min(delta) > exemple_count_boundaries[0] \
+                    if      np.min(delta) > boundaries_len_sample[0] \
                     else    gaps[np.argmax(delta)]
 
-        if exemple_count_boundaries[0] > (gap[1] - gap[0]):
-            str_err = f'вообщето призак "{self.name}" с границами [{self.val_min}, {self.val_max}] не имеет неприрывного' + \
-                        f'промежутка длиной "{exemple_count_boundaries[0]}", так чтобы он не пересекался с {exeption}'
+        if boundaries_len_sample[0] > (gap[1] - gap[0]):
+            str_err = f'вообщето призак "{self.name}" с границами [{self.val_min}, {self.val_max}] не имеет неприрывного' +\
+                      f'промежутка длиной хотябы"{boundaries_len_sample[0]}", так чтобы он не пересекался с {exeption}'
             raise TypeError(str_err)
-        if exemple_count_boundaries[1] > (gap[1] - gap[0]):
-            exemple_count_boundaries[1] = gap[1] - gap[0]
+        
+        if boundaries_len_sample[1] > (gap[1] - gap[0]):
+            boundaries_len_sample[1] = gap[1] - gap[0]
             
-        exemple_count = exemple_count_boundaries[0] + random.random() * (exemple_count_boundaries[1] - exemple_count_boundaries[0])
-
-        posible_max_count = gap[1] - gap[0] - exemple_count
-        
-        
-        posible = gap[0] + (random.random() * posible_max_count)
-        return [posible, posible + exemple_count]
+        sample_len = self._rng.uniform(boundaries_len_sample[0], boundaries_len_sample[1])
+        sample_start = self._rng.uniform(gap[0] , gap[1] - sample_len)
+        return [sample_start, sample_start + sample_len]
     
     
 if __name__ == '__main__':
@@ -169,6 +167,10 @@ if __name__ == '__main__':
                                normal_value = 'нормальный')
         if is_print: 
             print(sign_enumerable)
+            v = []
+            for _ in range(3):
+                v = sign_enumerable.createSample(v, [0.1, 0.3])
+                print(v)
         is_correct = sign_enumerable.name = 'цвет лица'
         return is_correct
     
@@ -178,15 +180,15 @@ if __name__ == '__main__':
                                     val_max = 42,
                                normal_value = [35.5, 37.2])
         if is_print:
-            v = None
+            v = []
             for _ in range(3):
-                v = sign_interval.createExamples(exeption=v)
-                print(v)
+                v = sign_interval.createSample(v, [0.1, 0.3])
+                print(v[1]-v[0])
         
         return True
     
     if not checkSignDiscrete(False):
         print('error checkSignDiscrete')
-    if not checkSignContinuous(True):
+    if not checkSignContinuous(False):
         print('error checkSignContinuous')
 
