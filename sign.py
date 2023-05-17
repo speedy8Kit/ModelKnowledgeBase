@@ -107,7 +107,8 @@ class SignContinuous(Sign):
     def __init__(self, name: str, val_min: float, val_max: float, normal_value = None) -> None:
         d = val_max - val_min
         self.decimal = -int(f'{d:e}'.split('e')[1]) + 2
-        
+        val_min = np.around(val_min, self.decimal)
+        val_max = np.around(val_max, self.decimal)
         if normal_value is None:
             normal_value = np.mean([val_min, val_max])
         super().__init__(name, normal_value, [val_min, val_max])
@@ -154,8 +155,8 @@ class SignContinuous(Sign):
         if boundaries_len_sample[1] > (gap[1] - gap[0]):
             boundaries_len_sample[1] = gap[1] - gap[0]
             
-        sample_len = self._rng.uniform(boundaries_len_sample[0], boundaries_len_sample[1])
-        sample_start = self._rng.uniform(gap[0] , gap[1] - sample_len)
+        sample_len = np.around(self._rng.uniform(boundaries_len_sample[0], boundaries_len_sample[1]), self.decimal)
+        sample_start = np.around(self._rng.uniform(gap[0] , gap[1] - sample_len), self.decimal)
         return [sample_start, sample_start + sample_len]
     
     

@@ -8,7 +8,7 @@ import sign as sig
 from typing import TypedDict
 
 
-class ClinicalPicture():
+class ModelKnowledgeBase():
     '''
     A class for creating an intellectual knowledge base allows
     you to separately form signs and diseases with created signs
@@ -55,9 +55,10 @@ class ClinicalPicture():
         
         data_pd      = data_pd.set_index(['заболевание', data_pd.index])
         data_disease.index.name = 'заболевание'
-        index = pd.MultiIndex.from_tuples(zip(['ЧПД для признака' for _ in range(len(data_disease.columns))],
-                                          data_disease.columns))
-        data_disease.columns = index
+        
+        # index = pd.MultiIndex.from_tuples((['ЧПД для признака' for _ in range(len(data_disease.columns))],
+        #                                   data_disease.columns))
+        # data_disease.columns = index
         
         return data_signs, data_disease, data_pd
     
@@ -126,7 +127,7 @@ class ClinicalPicture():
 if __name__ == '__main__':
     def checClinicalPicture(is_print: bool):
 
-        g = ClinicalPicture(signs_count=6, disease_count=3)
+        g = ModelKnowledgeBase(signs_count=6, disease_count=3)
 
         g.generateSings()
         g.generateDisease()
